@@ -47,7 +47,7 @@ v_T = np.array([10,20,30],dtype=np.int) # window sizes
 n_T = v_T.size # number of window sizes to test
 T = v_T[-1] # time for simulation
 
-# simulation of network in response to (noisy) input time series
+# simulation of network activity in response to (noisy) input time series
 def sim_net(W_arg,B_arg,T_arg):
     noise_x = np.random.randn(M,T0+T_arg) # realization of noise to generate input
     x_tmp = np.dot(W_arg, noise_x) # graphical model
@@ -60,6 +60,12 @@ def comp_cov_emp(ts_x_arg,ts_y_arg,T_arg):
     Q0_tmp = np.tensordot(ts_y_arg[:,0:T_arg-1],ts_y_arg[:,0:T_arg-1],axes=(1,1)) / (T_arg-1)
     return P0_tmp, Q0_tmp
 
+# basis matrices; 1 for indices (i,k), 0 otherwise
+M_ik = np.zeros([N,M,N,M])
+for i in range(N):
+    for k in range(M):
+        M_ik[i,k,i,k] = 1
+    
 
 #%% optimization for classification
 
@@ -69,29 +75,23 @@ n_opt_aff = 1000 # number of optimization steps
 n_smooth = 5 # smoothing for performance curve
 n_opt = n_opt_aff + n_smooth # number of optimization steps including discarded initial steps
 
-n_pat = 10 # number of patterns in total
+n_pat = 10 # number of input patterns in total
 n_cat = 2 # number of categories
 v_match = np.zeros([n_pat],dtype=np.int) # category for each input pattern
 for i_pat in range(n_pat):
      v_match[i_pat] = int(i_pat/(n_pat/n_cat)) # even number of patterns per category
 
-n_rep = 20 # optimization repetitions
+n_rep = 20 # repetitions of same experiment
 n_samp = 100 # number of samples to test classification accuracy
 
 # save error history and accuracy
 err_hist = np.zeros([n_rep,n_T,n_opt])
 acc_summary = np.zeros([n_rep,n_T])
     
-# basis matrices; 1 for indices (i,k), 0 otherwise
-M_ik = np.zeros([N,M,N,M])
-for i in range(N):
-    for k in range(M):
-        M_ik[i,k,i,k] = 1
-    
 
 for i_rep in range(n_rep):
 
-    # generate mixing matrix that determine input patterns (graphical model)
+    # randomly generate mixing matrix that determine input patterns (graphical model)
     W_pat = np.zeros([n_pat,M,M])
     for i_pat in range(n_pat):
         # input mixing matrix
@@ -100,10 +100,10 @@ for i_rep in range(n_rep):
         if np.abs(np.linalg.eig(W_pat[i_pat,:,:])[0]).max()>0:
             W_pat[i_pat,:,:] *= (0.4 + 0.3*np.random.rand()) / np.abs(np.linalg.eig(W_pat[i_pat,:,:])[0]).max()
 
-    # generate output objective patterns
+    # create output objective patterns
     Q0_cat = np.zeros([n_cat,N,N])
     for i_cat in range(n_cat):
-        # pattern category correspond to larger variance
+        # pattern category corresponds to larger variance
         Q0_cat[i_cat,:,:] = np.eye(N) * 0.3
         Q0_cat[i_cat,i_cat,i_cat] = 1
 
@@ -139,7 +139,7 @@ for i_rep in range(n_rep):
 
         B_fin = np.array(B)
         
-        # test accurqacy at the end of the optimization
+        # test accuracy at the end of the optimization
         for i_samp in range(n_samp):
             i_pat = int((i_samp*n_pat)/n_samp)
             i_cat = v_match[i_pat]
@@ -171,6 +171,7 @@ pp.ylabel('error $Q^0$',fontsize=10)
 pp.xlabel('optimization steps',fontsize=10)
 pp.savefig(work_dir+'err_hist.'+grph_fmt,format=grph_fmt)
 pp.close()
+
 
 # summary of accuracy after optimization for each window size
 pp.figure(figsize=[2,2])
